@@ -127,80 +127,9 @@ isLoadingChatHistory: false,
       return this.user
     },
 
-    async loginUser(cred: { loginname: string; password: string }) {
-      try {
-        const client = api()
-        this.isLoading = true
-        this.error = null
-        this.message = ''
-
-        const res = await client.post(`/api/Access/loginUser`, cred, { withCredentials: true })
-
-        if (res.data.status === 'SUCCESS') {
-          const u = res.data.objParam1
-          const normalizedRole = u.userrole.toLowerCase().replace(/\s+/g, '_') as UserRole
-
-          this.user = {
-            userId: u.userid,
-            name: u.requestorname,
-            email: u.emailadd,
-            role: normalizedRole,
-            department: u.department,
-            branchName: u.branchname,
-            empId: u.empid
-          }
-
-          this.isAuthenticated = true
-          this.initialized = true
-
-          await this.initializeUserStores()
-
-          // ✅ Don't read/remove REDIRECT_KEY here
-          // ✅ Don't call fetchListMaintenance here — sidebar handles it in onMounted
-          // ✅ Just navigate to dashboard — middleware will redirect to REDIRECT_KEY if it exists
-          return navigateTo('/dashboard')
-        }
-
-        this.error = res.data.message || 'Login failed'
-        return false
-
-      } catch (err: any) {
-        const status = err.response?.status
-        const serverMessage = err.response?.data?.message
-
-        if (serverMessage) {
-          // ✅ Covers normal failures (wrong credentials, locked account)
-          // AND the 429 rate-limit JSON body from the backend, since it
-          // uses the same { status, message } shape.
-          this.error = serverMessage
-        } else if (status === 429) {
-          // fallback in case the 429 body wasn't readable for some reason
-          this.error = 'Too many login attempts. Please wait a moment and try again.'
-        } else if (!err.response) {
-          // no response object at all = actual network/connectivity failure
-          // or CORS blocked the response before JS could read it
-          this.error = 'Network error — please check your connection and try again.'
-        } else {
-          this.error = 'Something went wrong. Please try again.'
-        }
-
-        this.message = this.error
-        return false
-      } finally {
-        this.isLoading = false
-      }
-    },
+    
 
 
-    async initializeUserStores() {
-      const maintenanceStore = useMaintenanceStore()
-      const devStore = useDevStore()
-      const itprfRequestStore = useItprfRequestStore()
-
-      await Promise.all([
-        maintenanceStore.fetchListMaintenance(),
-      ])
-    },
 
     async fetchSession() {
       // ✅ If a session check is already in flight, every caller awaits
@@ -365,65 +294,8 @@ async getRecipientName(userid: number){
   }
 },
 
-    async getBranchName() {
-      const client = api()
-      try {
-        const res = await client.get(`/api/Access/Branch-Name`, {
-          withCredentials : true
-        })
 
-        this.userBranch = res.data.userBranch
-        this.branchList = res.data.branchNameList
-      } catch (error: any) {
-        alert(error)
-      }
-    },
 
-    async getDepartment() {
-      const client = api()
-      try {
-        const res = await client.get(`/api/Access/Get-Department`, {
-          withCredentials : true
-        })
-
-        this.userDepartment = res.data.userDepartment
-        this.departmentList = res.data.departmentList
-      } catch (error:any) {
-        alert(error)
-      }
-    },
-
-    async logout() {
-      const itprfRequestStore = useItprfRequestStore()
-      const devStore = useDevStore()
-      const maintenanceStore = useMaintenanceStore()
-
-      try {
-        const client = api()
-        await client.post(`/api/Access/logout`, {}, { withCredentials: true })
-      } catch (error) {
-        console.error(error)
-      } finally {
-        this.user = null
-        this.isAuthenticated = false
-        this.initialized = false
-
-        // ✅ Explicitly wipe every store that held per-user/privilege data,
-        // instead of refetching (which can silently fail post-logout and
-        // doesn't help anyway since the sidebar reads these specific fields).
-        itprfRequestStore.isShow = false
-        itprfRequestStore.isCloseShow = false
-        devStore.queuedIsDev = false
-        maintenanceStore.menuSections = []
-
-        // Clear ALL path keys on logout
-        localStorage.removeItem('redirect_after_login')
-        localStorage.removeItem('last_visited_path')
-        localStorage.removeItem('auth_last_path')
-
-        navigateTo('/')
-      }
-    },
 
     async fethItPeople(){
       try {
